@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+.background {
+  fill: none;
+  pointer-events: all;
+}
+
+.states {
+  fill: #aaa;
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+
+.counties {
+  fill: #aaa;
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+
+.states .active {
+  fill: white;
+}
+
+div.tooltip {   
+  position: absolute;           
+  text-align: center;           
+  width: 60px;                  
+  height: 40px;                 
+  padding: 2px;             
+  font: 12px sans-serif;        
+  background: lightsteelblue;   
+  border: 0px;      
+  border-radius: 8px;           
+  pointer-events: none;         
+}
+
+.counties{
+	opacity: 0;
+}
+
+.unidentified { fill:white; }
+/*.q0-9 { fill:rgb(247,245,255); }
+.q1-9 { fill:rgb(222,235,247); }
+.q2-9 { fill:rgb(198,219,239); }
+.q3-9 { fill:rgb(158,202,225); }
+.q4-9 { fill:rgb(107,174,214); }
+.q5-9 { fill:rgb(66,146,198); }
+.q6-9 { fill:rgb(33,113,181); }
+.q7-9 { fill:rgb(8,81,156); }
+.q8-9 { fill:rgb(8,48,107); }
+*/
+ .q0-9{fill:rgb(255,255,200)}
+ .q1-9{fill:rgb(247,252,185)}
+ .q2-9{fill:rgb(217,240,163)}
+ .q3-9{fill:rgb(173,221,142)}
+ .q4-9{fill:rgb(120,198,121)}
+ .q5-9{fill:rgb(65,171,93)}
+ .q6-9{fill:rgb(35,132,67)}
+ .q7-9{fill:rgb(0,104,55)}
+ .q8-9{fill:rgb(0,69,41)}
+</style>
+<body>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+ <script src="http://d3js.org/queue.v1.min.js"></script>
+<script src="http://d3js.org/topojson.v0.min.js"></script>
+<script>
+
+var usStates = [
+    { name: 'ALABAMA', abbreviation: 'AL'},
+    { name: 'ALASKA', abbreviation: 'AK'},
+    { name: 'AMERICAN SAMOA', abbreviation: 'AS'},
+    { name: 'ARIZONA', abbreviation: 'AZ'},
+    { name: 'ARKANSAS', abbreviation: 'AR'},
+    { name: 'CALIFORNIA', abbreviation: 'CA'},
+    { name: 'COLORADO', abbreviation: 'CO'},
+    { name: 'CONNECTICUT', abbreviation: 'CT'},
+    { name: 'DELAWARE', abbreviation: 'DE'},
+    { name: 'DISTRICT OF COLUMBIA', abbreviation: 'DC'},
+    { name: 'FEDERATED STATES OF MICRONESIA', abbreviation: 'FM'},
+    { name: 'FLORIDA', abbreviation: 'FL'},
+    { name: 'GEORGIA', abbreviation: 'GA'},
+    { name: 'GUAM', abbreviation: 'GU'},
+    { name: 'HAWAII', abbreviation: 'HI'},
+    { name: 'IDAHO', abbreviation: 'ID'},
+    { name: 'ILLINOIS', abbreviation: 'IL'},
+    { name: 'INDIANA', abbreviation: 'IN'},
+    { name: 'IOWA', abbreviation: 'IA'},
+    { name: 'KANSAS', abbreviation: 'KS'},
+    { name: 'KENTUCKY', abbreviation: 'KY'},
+    { name: 'LOUISIANA', abbreviation: 'LA'},
+    { name: 'MAINE', abbreviation: 'ME'},
+    { name: 'MARSHALL ISLANDS', abbreviation: 'MH'},
+    { name: 'MARYLAND', abbreviation: 'MD'},
+    { name: 'MASSACHUSETTS', abbreviation: 'MA'},
+    { name: 'MICHIGAN', abbreviation: 'MI'},
+    { name: 'MINNESOTA', abbreviation: 'MN'},
+    { name: 'MISSISSIPPI', abbreviation: 'MS'},
+    { name: 'MISSOURI', abbreviation: 'MO'},
+    { name: 'MONTANA', abbreviation: 'MT'},
+    { name: 'NEBRASKA', abbreviation: 'NE'},
+    { name: 'NEVADA', abbreviation: 'NV'},
+    { name: 'NEW HAMPSHIRE', abbreviation: 'NH'},
+    { name: 'NEW JERSEY', abbreviation: 'NJ'},
+    { name: 'NEW MEXICO', abbreviation: 'NM'},
+    { name: 'NEW YORK', abbreviation: 'NY'},
+    { name: 'NORTH CAROLINA', abbreviation: 'NC'},
+    { name: 'NORTH DAKOTA', abbreviation: 'ND'},
+    { name: 'NORTHERN MARIANA ISLANDS', abbreviation: 'MP'},
+    { name: 'OHIO', abbreviation: 'OH'},
+    { name: 'OKLAHOMA', abbreviation: 'OK'},
+    { name: 'OREGON', abbreviation: 'OR'},
+    { name: 'PALAU', abbreviation: 'PW'},
+    { name: 'PENNSYLVANIA', abbreviation: 'PA'},
+    { name: 'PUERTO RICO', abbreviation: 'PR'},
+    { name: 'RHODE ISLAND', abbreviation: 'RI'},
+    { name: 'SOUTH CAROLINA', abbreviation: 'SC'},
+    { name: 'SOUTH DAKOTA', abbreviation: 'SD'},
+    { name: 'TENNESSEE', abbreviation: 'TN'},
+    { name: 'TEXAS', abbreviation: 'TX'},
+    { name: 'UTAH', abbreviation: 'UT'},
+    { name: 'VERMONT', abbreviation: 'VT'},
+    { name: 'VIRGIN ISLANDS', abbreviation: 'VI'},
+    { name: 'VIRGINIA', abbreviation: 'VA'},
+    { name: 'WASHINGTON', abbreviation: 'WA'},
+    { name: 'WEST VIRGINIA', abbreviation: 'WV'},
+    { name: 'WISCONSIN', abbreviation: 'WI'},
+    { name: 'WYOMING', abbreviation: 'WY' }
+];
+
+var states = {};
+usStates.forEach(function(s){states[s.name]=s.abbreviation});
+
+d3.selection.prototype.moveToFront = function() {
+  return this.each(function(){
+  this.parentNode.appendChild(this);
+  });
+};
+
+var div = d3.select("body").append("div")   
+    .attr("class", "tooltip")               
+    .style("opacity", 0);
+
+var sdata = [];
+var cdata = [];
+var width = 960,
+    height = 500,
+    centered;
+
+var path = d3.geo.path();
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+svg.append("rect")
+    .attr("class", "background")
+    .attr("width", width)
+    .attr("height", height);
+    
+
+var g = svg.append("g")
+    .attr("class", "states");
+	
+	queue()
+	    .defer(d3.json, "usstatess.json")
+		.defer(d3.csv, "states_info.csv")
+		.defer(d3.csv, "counties_info.csv")
+		.defer(d3.json,"counties.json")
+	    .await(ready);
+	
+function ready(error,json,states_data,counties_data,counties) 
+	{
+		states_data.forEach(function(d){
+			sdata[d["State"]] = d["Percentage"];
+		})
+		counties_data.forEach(function(d){
+			cdata[parseInt(d["Fips"])] = [d["Percentage"],d["County"]];
+		})		
+	  draw2(counties);
+	  draw(json);
+	  var states = svg.selectAll(".states")
+	  states.moveToFront();
+	  }	
+var quantize = d3.scale.quantize()
+    .domain([0, 100])
+    .range(d3.range(9).map(function(i) { return "q" + i + "-9"; }));
+
+var mapclass = function(d){
+	var percentage = parseFloat(sdata[states[d.properties.name.toUpperCase()]]);
+	return quantize(percentage);
+} 
+
+var mapclass2 = function(d){
+	if (cdata[d.id])
+	{
+		var percentage = parseFloat(cdata[d.id][0]);
+		return quantize(percentage);
+	}
+	return "unidentified";
+} 
+ 
+	  
+var draw = function(json) {
+  g.selectAll("path")
+      .data(json.features)
+      .enter().append("path")
+      .attr("d", path)
+	  .attr("id",function(d){return d.properties.name})
+	  .attr("class",mapclass)
+	  .on("click", click)
+	  .on("mouseover", function(d) {      
+	              div.transition()        
+	                  .duration(200)      
+	                  .style("opacity", .9);      
+	              div .html(d.properties.name +"<br/>"+ parseFloat(sdata[states[d.properties.name.toUpperCase()]])+"%")  
+	                  .style("left", (d3.event.pageX) + "px")     
+	                  .style("top", (d3.event.pageY - 28) + "px");    
+	              })                  
+	          .on("mouseout", function(d) {       
+	              div.transition()        
+	                  .duration(500)      
+	                  .style("opacity", 0);   
+	          });
+	  //.append("svg:title")
+	  //.text(function(d) { return d.properties.name + "-" + Math.round(dataset[states[d.properties.name.toUpperCase()]]["percentage"]*100)+"%"; });
+	  //.attr("style","fill:rgb(78,48,107);")
+};
+var color = d3.scale.category20c();
+var gcounties;
+var draw2 = function(us){
+	 gcounties= svg.append("g").attr("class", "counties")
+		gcounties.selectAll("path")
+        .data(topojson.object(us, us.objects.counties).geometries)
+        .enter().append("path")
+        .attr("d", path)
+		//.style("fill",function(d) { return color(d.id / 1000 | 0); })
+  	  .attr("class",mapclass2)
+	  .on("click", click2)
+	  .on("mouseover", function(d) {      
+	              div.transition()        
+	                  .duration(200)      
+	                  .style("opacity", .9);      
+	              div .html(function(){
+					  if (d && d.id && cdata[d.id])
+					  return cdata[d.id][1] +"<br/>"+cdata[d.id][0];
+					  else if (d && d.id)
+					  return (d.id + "<br/>");
+					  else
+					  return "Unidentified";
+	              })  
+	                  .style("left", (d3.event.pageX) + "px")     
+	                  .style("top", (d3.event.pageY - 28) + "px");    
+	              })                  
+	          .on("mouseout", function(d) {       
+	              div.transition()        
+	                  .duration(500)      
+	                  .style("opacity", 0);   
+	          });
+}
+
+function click(d) {
+  var x, y, k;
+
+  if (d && centered !== d) {
+    var centroid = path.centroid(d);
+    x = centroid[0];
+    y = centroid[1];
+    k = 4;
+    centered = d;
+  } else {
+    x = width / 2;
+    y = height / 2;
+    k = 1;
+    centered = null;
+  }
+
+  g.selectAll("path")
+      .classed("active", centered && function(d) { return d === centered; });
+
+  g.transition()
+      .duration(1000)
+      .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
+      .style("stroke-width", 1.5 / k + "px");
+	  
+  svg.selectAll(".counties")
+ 	      .classed("active", centered && function(d) { return d === centered; });
+ 
+ 	  gcounties.transition()
+ 	      .duration(1000)
+ 	      .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
+ 	      .style("stroke-width", 1.5 / k + "px")
+		  .style("opacity",0.7);  
+	
+	gcounties.moveToFront();
+}
+
+
+
+function click2(d) {
+  var x, y, k;
+
+ 
+    x = width / 2;
+    y = height / 2;
+    k = 1;
+    centered = null;
+
+  g.selectAll("path")
+      .classed("active", centered && function(d) { return d === centered; });
+
+  g.transition()
+      .duration(1000)
+      .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
+      .style("stroke-width", 1.5 / k + "px");
+	  
+  svg.selectAll(".counties")
+ 	      .classed("active", centered && function(d) { return d === centered; });
+ 
+ 	  gcounties.transition()
+ 	      .duration(1000)
+ 	      .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")scale(" + k + ")translate(" + -x + "," + -y + ")")
+ 	      .style("stroke-width", 1.5 / k + "px")
+		  .style("opacity",0)
+		  .each('end',function(){g.moveToFront();});
+		  
+		   
+		  
+}
+
+
+</script>
